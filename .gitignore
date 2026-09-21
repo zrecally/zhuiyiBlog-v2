@@ -1,0 +1,139 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+coverage
+.cache
+tmp
+*.local
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+frontend/dist-static/
+frontend-v2/dist/
+frontend-v2/dist-static/
+frontend-v2/dist-start/
+admin-frontend/dist/
+admin-frontend/dist-static/
+frontend-v2/*.tsbuildinfo
+frontend-v2/vite.config.js
+frontend-v2/vite.config.d.ts
+frontend-v2/vite.start.config.js
+frontend-v2/vite.start.config.d.ts
+*.pem
+*.key
+*.p12
+*.pfx
+*.exp
+
+# Runtime caches, exports and private data
+cache_data/
+**/cache_data/
+exports/
+**/exports/
+backups/
+**/backups/
+posts_cache.json
+**/posts_cache.json
+*.sql
+!zhuiyi_blog_cluster_schema.sql
+# Prisma migrations are source code. Keep every migration.sql tracked even
+# though ad-hoc database dumps remain ignored by the broad rule above.
+!backend-v2/prisma/migrations/
+!backend-v2/prisma/migrations/**/
+!backend-v2/prisma/migrations/**/migration.sql
+*.dump
+*.db
+*.sqlite
+*.sqlite3
+
+# Local archives and deployment backups
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+
+# Machine-specific deployment overrides
+deploy/**/*.local.conf
+
+# Local credential/debug probes
+/server
+actual_keys.json
+legacy-v1/
+/tests/certs/
+/extract-keys.js
+/test-admin-data.js
+test-sig.js
+test-read*.js
+**/test-read*.js
+frontend/test-lucide*.js
+frontend/public/pigeon/bird.svg
+frontend/public/pigeon/feather*.png
+admin-frontend/public/pigeon/feather.png
+frontend/public/fax-modem.ogg
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.tar.gz
+
+# Xianyu Auto Reply
+xianyu-auto-reply/
+
+# 本地工具与构建产物
+.zcode/
+frontend-v2/dist-card/
+
+# 迁移期源码副本（仅保留迁移文档与配置入库）
+mysql-version/backend-v2/
+mysql-version/frontend-v2/
+mysql-version/admin-frontend/
+mysql-version/exports/
+
+# CardDeck source belongs to this product, but compiled apps and legacy
+# one-file binaries remain local build artifacts.
+macos/*
+!macos/CardDeck/
+macos/CardDeck/*
+!macos/CardDeck/README.md
+!macos/CardDeck/build.sh
+!macos/CardDeck/icon-gen.swift
+!macos/CardDeck/Resources/
+!macos/CardDeck/Resources/**
+!macos/CardDeck/Sources/
+!macos/CardDeck/Sources/**
+
+# 运维文档仅本地维护，不入库（含服务器拓扑与流程细节）
+doc/
+
+# ==== 本机保留、不入公开仓库(2026-09-21 大清洗) ====
+/deploy/
+/mysql-version/
+/macos/
+/doc/
+/run.sh
+/docker-compose.cluster.yml
+/docker-compose.mock-cluster.yml
+/docker-compose.local-backend.yml

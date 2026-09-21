@@ -1,0 +1,10 @@
+{
+  "pluginId": "orchestration-pro",
+  "version": "1.2.0",
+  "name": "编排模式 Pro",
+  "description": "",
+  "changelog": "OSS 交付验证",
+  "minHostVersion": "",
+  "payloadSHA256": "dd33825101d005749f8695839ee5f12cff42a116c2f21ba5065882838bc614af",
+  "publishedAt": 1789818487
+}

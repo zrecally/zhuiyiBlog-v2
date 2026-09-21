@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+ .horizon {
+ position: relative;
+}
+ .horizon::after {
+ content:'';
+ position: absolute;
+ bottom: -1px;
+ left: 0;
+ width: 100%;
+ height: 1px;
+ background-color: currentColor;
+ opacity: 0;
+ transition: opacity 0.3s ease;
+}
+ .group:hover .horizon::after {
+ opacity: 1;
+}
+
+ /* 修复被 not-prose 隔离后，表格内嵌套 code 标签样式丢失的问题 */
+ .prose-table-override code {
+ font-weight: 500;
+ background-color: rgba(150, 150, 150, 0.15);
+ padding: 0.2em 0.4em;
+ border-radius: 0.25rem;
+ color: #C83C23;
+}
+
+ /* 专为小弹窗列表设计的细滚动条 */
+ .custom-scrollbar-thin::-webkit-scrollbar {
+ width: 4px;
+ height: 4px;
+}
+
+ .custom-scrollbar-thin::-webkit-scrollbar-track {
+ background: transparent;
+}
+
+ .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+ background: rgba(0, 0, 0, 0.1);
+ border-radius: 2px;
+}
+
+ .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+ background: rgba(0, 0, 0, 0.25);
+}
+
+ /* 导航下拉菜单：不提供独立底色，直接浮在页面内容上。 */
+ .nav-glass {
+ position: relative;
+ isolation: isolate;
+ background: transparent;
+ border: 0;
+ box-shadow: none;
+ backdrop-filter: none;
+ -webkit-backdrop-filter: none;
+ }
+
+.nav-glass::before {
+ display: none;
+}
+}
+
+@layer base {
+ html {
+ /* 只使用霞鹜文楷的常规字重，避免浏览器为现有 bold 类合成过粗字形。 */
+ font-synthesis: none;
+}
+
+ body {
+ /* 起始页原型同款：水墨插画由 BackgroundGrid 叠入，此处保留纸张底色。 */
+ @apply antialiased text-xianxia-text bg-xianxia-bg font-sans;
+ font-weight: 400;
+ background-color: #fcfaf6;
+ background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+ background-attachment: fixed;
+}
+
+ /* 墨水屏特有的底纹质感，仅在 md（PC端）以上生效，移动端禁用背景滤镜以节省性能 */
+ @media (min-width: 768px) {
+ .dark body {
+ background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+ /* 在墨水屏模式下，除了图片、视频等媒体元素，其余全部去色。移动端禁用全局滤镜。 */
+ .dark *:not(:has(img, video, canvas)):not(img, video, canvas) {
+ filter: grayscale(100%);
+}
+}
+
+ /* 墨水屏特有：去除所有非必要的平滑过渡，模拟屏幕刷新，但给媒体元素保留一点柔和度 */
+ .dark *:not(img, video, .transition-keep) {
+ transition-duration: 0.05s !important;
+}
+}

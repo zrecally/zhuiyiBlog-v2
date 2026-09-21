@@ -1,0 +1,323 @@
+/* Scoped to the independent start page; do not alter the blog background. */
+.start-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  background-color: #f8f3e8;
+}
+
+.start-page__background {
+  background: url('/images/start-page-landscape-background-v1.webp') center bottom / cover no-repeat;
+}
+
+.start-page__brand {
+  top: 28px;
+  left: 32px;
+}
+
+.start-page__brand-mark {
+  width: 32px;
+  height: 32px;
+  font: italic 22px/1 Georgia, 'Times New Roman', serif;
+}
+
+.start-page__main {
+  max-width: 1046px;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: clamp(112px, 17vh, 176px) 32px 112px;
+}
+
+.start-page__clock {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(80px, 8vw, 104px);
+  font-weight: 400;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.start-page__date {
+  margin-top: 14px;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  line-height: 1.6;
+}
+
+.start-page__quote {
+  margin-top: 16px;
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  line-height: 1.6;
+}
+
+/* The whole search form sits above the shortcut stacking context. */
+.start-page__search {
+  --search-height: 56px;
+  --search-radius: 28px;
+  max-width: 640px;
+  height: var(--search-height);
+  margin-top: 28px;
+}
+
+/* One surface grows downward while the form retains its collapsed layout height. */
+.start-page__search-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border: 1px solid rgba(157, 147, 126, 0.35);
+  border-radius: var(--search-radius);
+  background: rgba(255, 254, 250, 0.68);
+  box-shadow: 0 3px 10px rgba(76, 66, 45, 0.09), inset 0 1px rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.start-page__search-surface[data-expanded='true'] {
+  background: rgba(252, 250, 246, 0.9);
+  box-shadow: 0 12px 28px rgba(70, 63, 48, 0.14), inset 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.start-page__search-field {
+  height: calc(var(--search-height) - 2px);
+  padding: 0 20px;
+}
+
+.start-page__engines {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(252, 250, 246, 0.96);
+  box-shadow: 0 12px 28px rgba(70, 63, 48, 0.14);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.start-page__suggestions {
+  border-radius: 0 0 calc(var(--search-radius) - 1px) calc(var(--search-radius) - 1px);
+}
+
+.start-page__suggestions::before {
+  content: '';
+  display: block;
+  height: 1px;
+  margin: 0 20px;
+  background: rgba(157, 147, 126, 0.2);
+}
+
+.start-page__suggestion-list {
+  max-height: min(320px, 40svh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.start-page .start-page__suggestion {
+  min-height: 38px;
+}
+
+.start-page .start-page__suggestion.is-active,
+.start-page .start-page__suggestion:hover {
+  background: rgba(162, 184, 168, 0.22);
+}
+
+.start-page__shortcuts {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: clamp(12px, 1.8vw, 26px);
+  width: 100%;
+  max-width: 982px;
+  margin-top: 36px;
+}
+
+.start-page__shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  aspect-ratio: 128 / 150;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  /* Same 128:150 card and 20px corner proportions as the reference, scaled down. */
+  border-radius: 15.625% / 13.333333%;
+  background: rgba(255, 254, 250, 0.48);
+  box-shadow: 0 5px 15px rgba(76, 66, 45, 0.07), inset 0 1px rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.start-page__shortcut:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(76, 66, 45, 0.12);
+}
+
+.start-page__shortcut:focus-visible {
+  outline: 2px solid #849f8d;
+  outline-offset: 4px;
+}
+
+.start-page__shortcut-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.start-page__footer {
+  right: 28px;
+  bottom: 24px;
+}
+
+.start-page .start-page__weather,
+.start-page .start-page__settings {
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(252, 250, 246, 0.65);
+  box-shadow: 0 3px 12px rgba(76, 66, 45, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.start-page__settings {
+  width: 38px;
+  flex-shrink: 0;
+}
+
+.start-weather__trigger {
+  max-width: min(620px, calc(100vw - 112px));
+  text-align: left;
+}
+
+.start-weather__aqi,
+.start-weather__lunar {
+  display: inline-flex;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.start-weather__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(48, 46, 41, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.start-weather__panel {
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100svh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 24px;
+  background: #fcfaf6;
+  box-shadow: 0 20px 65px rgba(48, 46, 41, 0.18);
+}
+
+.start-weather__readings {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(162, 184, 168, 0.1);
+}
+
+.start-weather__icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.start-weather__icon-button:hover {
+  background: rgba(162, 184, 168, 0.15);
+}
+
+.start-weather__panel .start-weather__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #343c36;
+  color: #fcfaf6;
+  font-size: 13px;
+}
+
+.start-weather__action:disabled,
+.start-weather__icon-button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.start-weather__cities {
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+@media (max-width: 639px) {
+  .start-weather__aqi,
+  .start-weather__lunar { display: none; }
+  .start-weather__panel { padding: 20px; }
+}
+
+@media (max-width: 760px) {
+  .start-page__brand {
+    top: 22px;
+    left: 22px;
+  }
+
+  .start-page__main {
+    padding: 124px 24px 100px;
+  }
+
+  .start-page__date {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .start-page__quote {
+    font-size: 14px;
+  }
+
+  .start-page__search {
+    --search-height: 52px;
+    --search-radius: 26px;
+  }
+
+  .start-page__search-field {
+    padding: 0 16px;
+  }
+
+  .start-page__shortcuts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-width: 432px;
+    gap: 16px;
+    margin-top: 28px;
+  }
+
+  .start-page__shortcut-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .start-page__footer {
+    right: 20px;
+    bottom: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-page__shortcut {
+    transition: none;
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "pluginId": "orchestration-pro",
+  "version": "1.1.0",
+  "name": "编排模式 Pro",
+  "description": "",
+  "changelog": "终审迭代上限提升至 5 轮",
+  "minHostVersion": "",
+  "payloadSHA256": "dd33825101d005749f8695839ee5f12cff42a116c2f21ba5065882838bc614af",
+  "publishedAt": 1789820103
+}

@@ -1,0 +1,58 @@
+{
+  "policyVersion": 1,
+  "reviewGate": {
+    "approveToken": "[DECISION: APPROVED]",
+    "reviseToken": "[DECISION: REVISE]",
+    "maxRounds": 3
+  },
+  "planning": {
+    "maxNodes": 6
+  },
+  "defaultCanvas": {
+    "masterTitle": "总任务规划与顶层架构",
+    "masterBrief": "全局架构设计与任务拆解派发",
+    "masterOutput": "架构规划完成：完成系统工程拆解与任务分配方案，输出架构蓝图与智能体协同流水线。",
+    "workerTitleTemplate": "{tool} 协同代理",
+    "workerPrompt": "负责 {tool} 专项业务分解与具体子任务协同执行",
+    "workerBrief": "专项业务逻辑编写与功能模块实现",
+    "workerOutput": "交付产物：已完成模块实现与边界校验，自测用例全覆盖通过。",
+    "reviewerTitle": "终审验收与质量把关",
+    "reviewerPrompt": "汇总所有执行智能体产物与差异日志，进行终审核准或发起返工",
+    "reviewerBrief": "汇总智能体产物与比对 Git Diff 差异",
+    "reviewerOutput": "审查结论：全链路代码与规范符合顶格要求 [DECISION: APPROVED]。"
+  },
+  "roleInstructions": {
+    "master": "你是该编排图的总决策节点。请理解全局目标，为下游提供清晰、可执行的规划和约束。",
+    "worker": "你是画布中的执行代理。严格完成本节点任务，直接在工作区产生所需交付物并验证。",
+    "subtask": "你是画布中的专项任务节点。仅处理本节点声明的职责，结合上游产物完成交付。",
+    "reviewer": "你是终审节点。对连入本节点的产物与实际工作区变更进行验收；末行输出 [DECISION: APPROVED] 或 [DECISION: REVISE]。"
+  },
+  "fallbackStrategy": {
+    "id": "balanced",
+    "name": "标准三段管线",
+    "summary": "按分析、实施、验证三个阶段生成可编辑编排",
+    "steps": [
+      {
+        "id": "analysis",
+        "title": "分析现状与实施边界",
+        "promptTemplate": "围绕“{goal}”检查现状，定位涉及模块、约束和风险，输出具体实施清单；本节点只分析，不改文件。",
+        "toolSlot": 0,
+        "dependsOn": ["master"]
+      },
+      {
+        "id": "implementation",
+        "title": "{action}：{goalShort}",
+        "promptTemplate": "依据上游分析完成“{goal}”的实际实现，保持既有 UI、逻辑和无关功能不变，并记录修改内容。",
+        "toolSlot": 1,
+        "dependsOn": ["analysis"]
+      },
+      {
+        "id": "verification",
+        "title": "验证结果与回归检查",
+        "promptTemplate": "验证实现是否满足：{expected}。运行适合的构建或测试，检查回归风险并输出可复核结论。",
+        "toolSlot": 2,
+        "dependsOn": ["implementation"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSS 模拟服务 - 桶浏览</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --border: #e4e1d8; --text: #2a2a2a;
+    --muted: #8a867c; --accent: #b5493c; --accent-dark: #9d3c31; --ok: #4f7761;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .04em; }
+  .sub { color: var(--muted); }
+  .stats { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; }
+  .stat b { font-size: 16px; display: block; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .dropzone {
+    border: 1.5px dashed var(--border); border-radius: 12px; background: var(--card);
+    padding: 22px; text-align: center; color: var(--muted); cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .dropzone.over { border-color: var(--ok); background: #f2f7f4; }
+  .dropzone input { display: none; }
+  .toolbar { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+  .toolbar input[type=text] {
+    flex: 1; min-width: 220px; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 13px;
+  }
+  button {
+    border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+    background: #eceae4; color: var(--text);
+  }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent-dark); }
+  button.link { background: none; color: var(--accent); padding: 4px 6px; }
+  button.link:hover { text-decoration: underline; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 18px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; background: #fbfaf7; }
+  td.key { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; word-break: break-all; max-width: 320px; }
+  td.muted { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0 !important; }
+  #toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #333; color: #fff; padding: 9px 18px; border-radius: 20px; font-size: 13px;
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #toast.show { opacity: .95; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 14px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📦 OSS 模拟服务</h1>
+    <span class="sub">本地开发专用 · <span id="bucket">…</span></span>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><b id="count">–</b><span>对象数</span></div>
+    <div class="stat"><b id="bytes">–</b><span>总大小</span></div>
+    <div class="stat"><b>私有读</b><span>下载需预签名</span></div>
+  </div>
+
+  <div class="dropzone" id="drop">
+    拖拽文件到这里，或 <button class="link" type="button" id="pick">选择文件上传</button>
+    <input type="file" id="file" multiple />
+  </div>
+  <div class="toolbar">
+    <input type="text" id="keyPrefix" placeholder="对象 key 前缀（可选，如 card-files/）" />
+    <button class="primary" id="uploadBtn">上传所选文件</button>
+  </div>
+
+  <table>
+    <thead><tr><th>对象 Key</th><th>大小</th><th>类型</th><th>修改时间</th><th style="width:200px">操作</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+  </table>
+
+  <p class="note">
+    「下载」生成 5 分钟有效的预签名地址并直接打开；「复制链接」复制同一地址。
+    若在容器网络外访问，可将链接中的主机名换成当前地址栏主机名，签名不受影响。
+    本页面与 /admin/api 仅用于本地调试，不是 OSS 协议的一部分。
+  </p>
+</div>
+<div id="toast"></div>
+
+<script>
+const TOKEN = '__OSS_MOCK_TOKEN__';
+const $ = sel => document.querySelector(sel);
+const fmtSize = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n/1024).toFixed(1)} KB` : n < 1073741824 ? `${(n/1048576).toFixed(1)} MB` : `${(n/1073741824).toFixed(2)} GB`;
+
+let toastTimer;
+const toast = msg => {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+};
+
+const api = (path, options = {}) => fetch(path, {
+  ...options,
+  headers: { 'x-oss-mock-token': TOKEN, ...(options.headers || {}) },
+}).then(async res => {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+});
+
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function load() {
+  const data = await api('/admin/api/list');
+  $('#bucket').textContent = `bucket: ${data.bucket}`;
+  $('#count').textContent = data.objects.length;
+  $('#bytes').textContent = fmtSize(data.totalBytes);
+  $('#rows').innerHTML = data.objects.length ? data.objects.map(obj => `
+    <tr>
+      <td class="key">${esc(obj.key)}</td>
+      <td class="muted">${fmtSize(obj.size)}</td>
+      <td class="muted">${esc(obj.contentType)}</td>
+      <td class="muted">${new Date(obj.lastModified).toLocaleString('zh-CN', { hour12: false })}</td>
+      <td class="muted">
+        <button class="link" data-dl="${esc(obj.key)}" data-name="${esc(obj.key.split('/').pop())}">下载</button>
+        <button class="link" data-copy="${esc(obj.key)}" data-name="${esc(obj.key.split('/').pop())}">复制链接</button>
+        <button class="link" data-del="${esc(obj.key)}">删除</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">桶是空的，先上传一个文件</td></tr>';
+}
+
+function pickFiles() {
+  const files = [...($('#file').files || [])];
+  return files;
+}
+
+async function uploadFiles(files) {
+  const prefix = $('#keyPrefix').value.trim().replace(/^\/+|\/$/g, '');
+  if (!files.length) { toast('请先选择文件'); return; }
+  for (const file of files) {
+    const key = `${prefix ? prefix + '/' : ''}${file.name}`;
+    await api(`/admin/api/upload?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      body: file,
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    });
+    toast(`已上传 ${key}`);
+  }
+  $('#file').value = '';
+  await load();
+}
+
+async function presign(key, name) {
+  const data = await api(`/admin/api/presign?key=${encodeURIComponent(key)}&ttl=300&filename=${encodeURIComponent(name)}`);
+  return data.url;
+}
+
+$('#pick').addEventListener('click', e => { e.stopPropagation(); $('#file').click(); });
+$('#drop').addEventListener('click', () => $('#file').click());
+$('#drop').addEventListener('dragover', e => { e.preventDefault(); $('#drop').classList.add('over'); });
+$('#drop').addEventListener('dragleave', () => $('#drop').classList.remove('over'));
+$('#drop').addEventListener('drop', async e => {
+  e.preventDefault();
+  $('#drop').classList.remove('over');
+  await uploadFiles([...e.dataTransfer.files]);
+});
+$('#uploadBtn').addEventListener('click', () => uploadFiles(pickFiles()));
+
+$('#rows').addEventListener('click', async e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  try {
+    if (btn.dataset.dl) {
+      const url = await presign(btn.dataset.dl, btn.dataset.name);
+      window.open(url, '_blank');
+    } else if (btn.dataset.copy) {
+      const url = await presign(btn.dataset.copy, btn.dataset.name);
+      await navigator.clipboard.writeText(url);
+      toast('预签名链接已复制（5 分钟有效）');
+    } else if (btn.dataset.del) {
+      if (!confirm(`确认删除 ${btn.dataset.del}？`)) return;
+      await api(`/admin/api/objects?key=${encodeURIComponent(btn.dataset.del)}`, { method: 'DELETE' });
+      toast('已删除');
+      await load();
+    }
+  } catch (err) { toast(`失败: ${err.message}`); }
+});
+
+load().catch(err => { $('#rows').innerHTML = `<tr><td colspan="5" class="empty">加载失败: ${esc(err.message)}</td></tr>`; });
+</script>
+</body>
+</html>

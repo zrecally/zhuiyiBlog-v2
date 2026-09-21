@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">默认头像</title>
+  <desc id="description">水墨风格的山水默认头像</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f4eb"/>
+      <stop offset="1" stop-color="#e7e2d4"/>
+    </linearGradient>
+    <linearGradient id="mountain" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5f746c"/>
+      <stop offset="1" stop-color="#263b36"/>
+    </linearGradient>
+    <clipPath id="frame">
+      <rect width="256" height="256" rx="48"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="256" height="256" fill="url(#paper)"/>
+    <circle cx="190" cy="65" r="28" fill="#c83c23" opacity=".78"/>
+    <path d="M-20 224 66 112l40 52 38-75 132 135Z" fill="url(#mountain)" opacity=".9"/>
+    <path d="M-12 230 77 151l35 37 31-42 126 84Z" fill="#93a69e" opacity=".72"/>
+    <path d="M0 215c41-17 73-17 111 0s78 17 145-5v46H0Z" fill="#dce4df" opacity=".9"/>
+    <path d="M30 230c49-19 87-19 128 0 30 13 61 13 98 2" fill="none" stroke="#f7f4eb" stroke-width="5" stroke-linecap="round" opacity=".72"/>
+    <circle cx="128" cy="94" r="36" fill="#f2d8bd"/>
+    <path d="M87 90c3-39 23-57 44-57 28 0 44 23 43 59-12-7-27-10-44-10-16 0-30 3-43 8Z" fill="#253b36"/>
+    <path d="M55 214c8-55 35-83 73-83s65 28 73 83Z" fill="#354f47"/>
+    <path d="m110 139 18 22 18-22 11 67H99Z" fill="#edf0e9" opacity=".9"/>
+  </g>
+  <rect x="2" y="2" width="252" height="252" rx="46" fill="none" stroke="#263b36" stroke-width="4" opacity=".45"/>
+</svg>

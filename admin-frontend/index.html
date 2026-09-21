@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+ <head>
+ <meta charset="UTF-8" />
+ <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2250%22 fill=%22%231A1A1A%22/><text x=%2250%22 y=%2255%22 font-family=%22serif%22 font-size=%2260%22 fill=%22white%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22>Z</text></svg>" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ <meta name="description" content="ZhuiYi 的个人博客，记录技术、项目与生活。" />
+ <meta property="og:url" content="https://www.hizhuiyi.cn/" />
+ <link rel="canonical" href="https://www.hizhuiyi.cn/" />
+ <title>Hi, ZhuiYi</title>
+ <script>
+ // 强制使用现代主题（水墨丹青），移除所有暗色模式
+ (function() {
+ document.documentElement.classList.remove('dark');
+ localStorage.setItem('theme','light');
+})();
+ </script>
+ <style>
+ .custom-scrollbar::-webkit-scrollbar {
+ height: 6px;
+}
+ .custom-scrollbar::-webkit-scrollbar-track {
+ background: transparent;
+}
+ .custom-scrollbar::-webkit-scrollbar-thumb {
+ background-color: rgba(163, 198, 177, 0.4);
+ border-radius: 3px;
+}
+ html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+ background-color: rgba(124, 163, 141, 0.4);
+}
+ </style>
+ </head>
+ <body>
+ <div id="root"></div>
+ <script type="module" src="/src/main.tsx"></script>
+ </body>
+</html>

@@ -1,0 +1,282 @@
+services:
+  # 0. 唯一本地数据库基线：MySQL 8.4（兼容 PolarDB-X MySQL 协议）
+  db:
+    image: mysql:8.4
+    container_name: zhuiyi_mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_bin"]
+    environment:
+      MYSQL_ROOT_PASSWORD: local-mysql-root-only
+      MYSQL_DATABASE: zhuiyi_blog
+      MYSQL_USER: zhuiyi
+      MYSQL_PASSWORD: local-mysql-only
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:3337:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -h 127.0.0.1 -u$$MYSQL_USER -D $$MYSQL_DATABASE -e 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 1. 统一后端服务器 (Full Backend Node Server)
+  backend:
+    build:
+      context: ./backend-v2
+      dockerfile: Dockerfile
+    container_name: zhuiyi_backend
+    ports:
+      - "127.0.0.1:3003:3001"
+      - "127.0.0.1:8454:8443"
+    env_file:
+      - ./backend-v2/.env
+    environment:
+      # 强制覆盖 .env 中的配置，指向本地 MySQL。
+      - DATABASE_URL=mysql://zhuiyi:local-mysql-only@db:3306/zhuiyi_blog?connection_limit=5&pool_timeout=20
+      - PORT=3001
+      - HOST=0.0.0.0
+      # 仅本地查看控制台时关闭测试 mTLS；端口仍只绑定 127.0.0.1。
+      - ADMIN_MTLS_ENABLED=false
+      - JWT_SECRET=local-dev-jwt-secret-never-use-in-production-2026-c8f3e1a9b2d45678
+      - TZ=Asia/Shanghai
+      - FEISHU_DATA_ENV=Test
+      - FEISHU_ALLOW_LEGACY_BLANK_ENV=false
+      - ADMIN_FEISHU_PRECHECK_ENABLED=false
+      - LOCAL_CARD_ADMIN_USERNAME=card-local
+      - LOCAL_CARD_ADMIN_PASSWORD=123456
+      # 本地栈不得因宿主机 .env 中残留的线上密钥访问第三方服务。
+      - FEISHU_APP_ID=
+      - FEISHU_APP_SECRET=
+      - FEISHU_BASE_TOKEN=
+      - FEISHU_WEBHOOK_URL=
+      - FEISHU_WEBHOOK_SECRET=
+      - FEISHU_ERROR_WEBHOOK_URL=
+      - FEISHU_ERROR_WEBHOOK_SECRET=
+      - SMTP_ENABLED=false
+      - GITHUB_CLIENT_ID=
+      - GITHUB_CLIENT_SECRET=
+      - GOOGLE_CLIENT_ID=
+      - GOOGLE_CLIENT_SECRET=
+      - FACEBOOK_CLIENT_ID=
+      - FACEBOOK_CLIENT_SECRET=
+      - DISCORD_CLIENT_ID=
+      - DISCORD_CLIENT_SECRET=
+      - MICROSOFT_CLIENT_ID=
+      - MICROSOFT_CLIENT_SECRET=
+      - DEEPSEEK_API_KEY=
+      - OPENAI_API_KEY=
+      - OSS_ENABLED=false
+      - BACKGROUND_JOBS_ENABLED=false
+      - STATIC_SNAPSHOT_ENABLED=true
+      - STATIC_SNAPSHOT_OUTPUT_DIR=/app/exports/static-site
+      - STATIC_SNAPSHOT_CONTENT_REFRESH_MINUTES=360
+      - STATIC_SNAPSHOT_RETAIN_RELEASES=3
+      - STATIC_SNAPSHOT_REMOTE_IMAGE_HOSTS=${STATIC_SNAPSHOT_REMOTE_IMAGE_HOSTS:-tc.alcy.cc,raw.githubusercontent.com}
+      - STATIC_PUBLISH_REQUEST_DIR=/app/static-publish-requests
+      - STATIC_PUBLISH_STATUS_FILE=/app/static-publish-status/status.json
+      - ARTICLE_ACCESS_ENABLED=true
+      - ARTICLE_ACCESS_PEPPER=local-only-article-access-pepper-change-me-2026
+      - ARTICLE_ACCESS_GATEWAY_SECRET=local-only-article-gateway-secret-change-me-2026
+      - ARTICLE_ACCESS_ALLOW_LAN_GATEWAY=true
+      - ARTICLE_ACCESS_COOKIE_DOMAIN=
+      - CARD_REDEEM_ENABLED=true
+      - CARD_REDEEM_SECRET=local-card-secret-not-for-production-2026
+      - CARD_REDEEM_REPLAY_MINUTES=30
+      - CARD_REDEEM_DOWNLOAD_TICKET_MINUTES=5
+      - CARD_ISSUE_RECEIPT_HOURS=24
+      - CARD_REDEEM_FEISHU_SYNC=false
+      - CARD_REDEEM_OSS_ENABLED=true
+      - CARD_REDEEM_OSS_ENDPOINT=http://oss-mock:9000
+      - CARD_REDEEM_OSS_ACCESS_KEY_ID=local-mock-key
+      - CARD_REDEEM_OSS_ACCESS_KEY_SECRET=local-mock-secret
+      - CARD_REDEEM_OSS_BUCKET=zhuiyi-card-local
+      - CARD_REDEEM_OSS_KEY_PREFIX=card-files/
+      - CARD_REDEEM_OSS_PUBLIC_ENDPOINT=http://127.0.0.1:9123
+      - CARD_REDEEM_OSS_PRESIGN_TTL_SECONDS=300
+      - CARD_REDEEM_OSS_PATH_STYLE=true
+    volumes:
+      - ./cache_data:/app/cache_data
+      - ./backups:/app/backups
+      - ./tests/certs:/app/tests/certs:ro
+      - ./admin-frontend/dist:/app/admin-frontend/dist:ro
+      - ./backend-v2/admin-console:/app/admin-console:ro
+      - static_exports:/app/exports/static-site
+      - static_publish_requests:/app/static-publish-requests
+      - static_publish_status:/app/static-publish-status:ro
+      - plugin_packages:/app/plugin-packages
+      - plugin_staging:/app/plugin-staging
+    depends_on:
+      db:
+        condition: service_healthy
+      oss_mock:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # 3. 前端与网关代理 (模拟前端 CDN 与路由分发)
+  frontend:
+    build:
+      context: ./frontend-v2
+    container_name: zhuiyi_frontend
+    ports:
+      - "127.0.0.1:80:80"
+    volumes:
+      # The local stack enables card redemption; mount the dedicated card build
+      # so production-boundary builds can continue excluding delivery code.
+      - ./frontend-v2/dist-card:/usr/share/nginx/html
+      - ./frontend-v2/nginx.mock.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # 4. 本地北京静态站。只提供静态页面和公开快照，不暴露业务 API。
+  static_frontend:
+    profiles: ["static"]
+    image: nginx:alpine
+    container_name: zhuiyi_static_frontend
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - static_site_releases:/srv/zhuiyi-static:ro
+      - ./frontend-v2/nginx.static.mock.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - static_publisher
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz | grep -qx ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+  # 4.1 独立起始页：仅静态资源，备案信息读取本地静态 release。
+  start_frontend:
+    profiles: ["static"]
+    image: nginx:alpine
+    container_name: zhuiyi_start_frontend
+    ports:
+      - "127.0.0.1:8082:80"
+    volumes:
+      - ./frontend-v2/dist-start:/usr/share/nginx/html:ro
+      - static_site_releases:/srv/zhuiyi-static:ro
+      - ./frontend-v2/nginx.start.mock.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - static_publisher
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz | grep -qx ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+  # 5. 本地宿主机发布器模拟。没有网络权限，也不包含任何线上 SSH 密钥。
+  static_publisher:
+    profiles: ["static"]
+    build:
+      context: .
+      dockerfile: deploy/local-static-publisher.Dockerfile
+    container_name: zhuiyi_static_publisher
+    environment:
+      SOURCE_ROOT: /source
+      REQUEST_FILE: /requests/request.json
+      STATUS_FILE: /status/status.json
+      SITE_DIR: /site
+      TARGET_ROOT: /target
+      STATE_DIR: /state
+      DESTINATION_LABEL: "本地静态站 :8081"
+    volumes:
+      - static_exports:/source:ro
+      - static_publish_requests:/requests:ro
+      - static_publish_status:/status
+      - static_site_releases:/target
+      - static_publisher_state:/state
+      - ./frontend-v2/dist-static:/site:ro
+    network_mode: none
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  # 6. 本地 Cloudflare 模拟网关
+  cloudflare_mock:
+    profiles: ["gateway"]
+    image: nginx:alpine
+    container_name: zhuiyi_cloudflare_mock
+    ports:
+      - "127.0.0.1:8088:80"
+    volumes:
+      - ./tests/cloudflare_mock/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+  # 7. 本地 S3 兼容对象存储（MinIO，与生产雨云 ROS 同为 S3/SigV4 协议）。
+  #    容器内 endpoint: http://oss-mock:9000（path-style），宿主机: http://127.0.0.1:9123
+  oss_mock:
+    image: minio/minio:latest
+    container_name: zhuiyi_oss_mock
+    command: server /data --address ":9000" --console-address ":9001"
+    ports:
+      - "127.0.0.1:9123:9000"
+      - "127.0.0.1:9124:9001"
+    environment:
+      MINIO_ROOT_USER: local-mock-key
+      MINIO_ROOT_PASSWORD: local-mock-secret
+    volumes:
+      - oss_mock_data:/data
+    networks:
+      default:
+        aliases:
+          - oss-mock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 192M
+
+volumes:
+  mysql_data:
+  static_exports:
+  static_publish_requests:
+  static_publish_status:
+  static_site_releases:
+  static_publisher_state:
+  oss_mock_data:
+  plugin_packages:
+  plugin_staging:

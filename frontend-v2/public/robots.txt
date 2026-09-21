@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.hizhuiyi.cn/api/v1/sitemap.xml

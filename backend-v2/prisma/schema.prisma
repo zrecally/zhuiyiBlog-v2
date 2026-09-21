@@ -1,0 +1,407 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id          Int      @id @default(autoincrement())
+  username    String   @unique @db.VarChar(255)
+  password    String   @db.LongText // 虽然有 TOTP，但保留基础密码作为第一层防御
+  totpSecret  String?  @db.LongText // TOTP 密钥
+  isTotpSetup Boolean  @default(false) // 是否已经绑定了 TOTP
+  isActive    Boolean  @default(true) // 账号是否激活
+  createdAt   DateTime @default(now())
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  email          String          @unique @db.VarChar(255) // 将用户名改为邮箱作为唯一标识
+  username       String          @unique @db.VarChar(255) // 昵称（可以根据邮箱前缀自动生成）
+  password       String?         @db.LongText // 改为可选，因为魔法链接不需要密码
+  avatar         String?         @db.LongText // 用户头像 URL (明亮模式)
+  avatarDark     String?         @db.LongText // 用户头像 URL (暗黑/水墨模式)
+  isActive       Boolean         @default(true) // 账号是否激活
+  createdAt      DateTime        @default(now())
+  comments       Comment[] // 关联的评论
+  accessRequests AccessRequest[] // 关联的私密文章访问申请
+  articleLikes   ArticleLike[] // 关联的文章点赞
+  danmakus       Danmaku[] // 关联的弹幕
+  notifications  Notification[]  @relation("UserNotifications") // 关联的消息通知
+  viewHistories  ViewHistory[] // 关联的浏览历史
+}
+
+model AccessRequest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  postId    String   @db.VarChar(255) // CMS post ID
+  status    String   @default("pending") @db.VarChar(255) // pending, approved, rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId])
+}
+
+// 飞书负责创建、撤销和展示一次性文章密码；MySQL 是实时核销状态的唯一真相源。
+model ArticleAccessCode {
+  id             Int                 @id @default(autoincrement())
+  feishuRecordId String              @unique @db.VarChar(255)
+  environment    String              @db.VarChar(255)
+  postId         String              @db.VarChar(255)
+  codeDigest     String              @db.VarChar(255)
+  passwordHash   String              @db.LongText
+  codeHint       String              @db.LongText
+  bindIp         Boolean             @default(false)
+  grantHours     Int                 @default(24)
+  status         String              @default("active") @db.VarChar(255) // active, used, revoked, expired, error
+  expiresAt      DateTime?
+  usedAt         DateTime?
+  usedIpHash     String?             @db.LongText
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  grant          ArticleAccessGrant?
+
+  @@unique([environment, codeDigest])
+  @@index([environment, postId, status])
+}
+
+// 无需登录的匿名浏览器会话。浏览器只持有随机令牌，数据库只保存令牌摘要。
+model AnonymousAccessSession {
+  id        String               @id @default(cuid()) @db.VarChar(255)
+  tokenHash String               @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  grants    ArticleAccessGrant[]
+}
+
+model ArticleAccessGrant {
+  id          Int                    @id @default(autoincrement())
+  sessionId   String                 @db.VarChar(255)
+  postId      String                 @db.VarChar(255)
+  codeId      Int                    @unique
+  boundIpHash String?                @db.LongText
+  expiresAt   DateTime
+  createdAt   DateTime               @default(now())
+  session     AnonymousAccessSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  code        ArticleAccessCode      @relation(fields: [codeId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, postId])
+  @@index([postId, expiresAt])
+}
+
+model CardIssueBatch {
+  id                 Int        @id @default(autoincrement())
+  environment        String     @db.VarChar(32)
+  requestId          String     @db.VarChar(80)
+  requestFingerprint String     @db.Char(64)
+  ossKey             String     @db.VarChar(512)
+  productName        String     @db.VarChar(120)
+  fileName           String     @db.VarChar(180)
+  fileSize           Int
+  cardCount          Int
+  codesCiphertext    String?    @db.LongText
+  feishuStatus       String     @default("pending") @db.VarChar(24)
+  feishuRegistered   Int        @default(0)
+  feishuError        String?    @db.LongText
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  cards              CardCode[]
+
+  @@unique([environment, requestId])
+  @@index([createdAt])
+}
+
+model CardCode {
+  id                     Int               @id @default(autoincrement())
+  feishuRecordId         String?           @unique @db.VarChar(255)
+  environment            String            @db.VarChar(32)
+  source                 String            @default("feishu") @db.VarChar(24)
+  productKey             String?           @db.VarChar(80)
+  productName            String            @db.VarChar(120)
+  codeDigest             String            @db.Char(64)
+  codeHash               String            @db.VarChar(255)
+  codeHint               String            @db.VarChar(8)
+  contentCiphertext      String?           @db.LongText
+  fileKey                String?           @db.VarChar(512)
+  fileName               String?           @db.VarChar(180)
+  fileMediaType          String?           @db.VarChar(120)
+  fileSize               Int?
+  fileChecksum           String?           @db.Char(64)
+  fileEtag               String?           @db.VarChar(255)
+  fileVersionId          String?           @db.VarChar(255)
+  feishuFileToken        String?           @db.VarChar(255)
+  salesChannel           String?           @db.VarChar(80)
+  orderReference         String?           @db.VarChar(160)
+  issueBatchId           Int?
+  issueIndex             Int?
+  status                 String            @default("active") @db.VarChar(24)
+  expiresAt              DateTime?
+  usedAt                 DateTime?
+  usedIpHash             String?           @db.Char(64)
+  replayTokenHash        String?           @db.Char(64)
+  replayExpiresAt        DateTime?
+  downloadGrantId        String?           @unique @db.Char(36)
+  downloadGrantIssuedAt  DateTime?
+  downloadGrantExpiresAt DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  issueBatch             CardIssueBatch?   @relation(fields: [issueBatchId], references: [id], onDelete: Restrict)
+  downloads              CardDownloadLog[]
+
+  @@unique([environment, codeDigest])
+  @@unique([issueBatchId, issueIndex])
+  @@index([environment, status, expiresAt])
+  @@index([orderReference])
+}
+
+model CardDownloadLog {
+  id        Int      @id @default(autoincrement())
+  grantId   String?  @unique @db.Char(36)
+  cardId    Int
+  codeHint  String   @db.VarChar(8)
+  fileKey   String   @db.VarChar(512)
+  bytes     Int
+  ipMasked  String   @db.VarChar(64)
+  storage   String   @default("unknown") @db.VarChar(24)
+  status    String   @default("link_issued") @db.VarChar(24)
+  createdAt DateTime @default(now())
+  card      CardCode @relation(fields: [cardId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([cardId, createdAt])
+}
+
+// 文章点赞记录表
+model ArticleLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  postId    String   @db.VarChar(255) // CMS post ID
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId])
+}
+
+// 魔法链接的 Token 记录表
+model MagicToken {
+  id        Int      @id @default(autoincrement())
+  email     String   @db.LongText
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime // 过期时间
+  createdAt DateTime @default(now())
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.LongText
+  summary   String?  @db.LongText
+  content   String   @db.LongText
+  image     String?  @db.LongText
+  category  String   @default("未分类") @db.VarChar(255)
+  source    String   @default("local") @db.VarChar(255)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id              Int     @id @default(autoincrement())
+  feishuRecordId  String? @unique @db.VarChar(255) // 用于与飞书的多维表格记录进行一一映射
+  feishuMessageId String? @unique @db.VarChar(255) // 飞书群卡片消息ID，用于接收回复事件关联
+
+  parentId Int? // 支持评论层级回复
+  parent   Comment?        @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  children Comment[]       @relation("CommentToComment")
+  actions  CommentAction[]
+
+  postId  String @db.VarChar(255)
+  content String @db.LongText
+
+  // 外键关联 User
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  ip        String?  @db.LongText
+  likes     Int      @default(0)
+  dislikes  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+}
+
+model CommentAction {
+  id        Int      @id @default(autoincrement())
+  commentId Int
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  action    String   @db.VarChar(16) // 'like' | 'dislike'
+  ipHash    String   @db.Char(64) // sha256(clientIp)，避免明文存储访客 IP
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, action, ipHash])
+}
+
+model Friend {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(255)
+  url         String   @db.LongText
+  avatar      String?  @db.LongText
+  description String?  @db.LongText
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ImageCache {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(255) // 飞书的 image token 或者原图标识
+  ossUrl    String   @db.LongText // 上传到 OSS 后的 CDN URL
+  createdAt DateTime @default(now())
+}
+
+model SiteStat {
+  id        Int      @id @default(1)
+  views     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model Danmaku {
+  id        Int      @id @default(autoincrement())
+  text      String   @db.VarChar(255)
+  color     String   @default("#FFFFFF") @db.VarChar(255)
+  ip        String?  @db.LongText
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+// 系统配置表（支持持久化 OSS/CDN 及主题配置）
+model SystemConfig {
+  id             Int      @id @default(autoincrement())
+  key            String   @unique @db.VarChar(255) // 配置键名，如 oss_ak, oss_sk, custom_font_url
+  value          String   @db.LongText // 配置值
+  isSecret       Boolean  @default(false) // 是否为敏感信息（前端脱敏显示）
+  feishuRecordId String?  @unique @db.VarChar(255) // 飞书多维表格中的记录 ID
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+}
+
+// 安全审计日志表
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  ip        String   @db.LongText // 攻击者或请求者的 IP
+  action    String   @db.LongText // 动作类型，如 'AUTO_BAN', 'LOGIN_FAILED', 'STRICT_LIMIT'
+  details   String   @db.LongText // 具体的攻击细节或日志描述
+  createdAt DateTime @default(now())
+}
+
+// Dynamic-site product poll. voterKey is an irreversible account-scoped hash,
+// so a vote can be made unique without storing an extra IP or exposing user IDs.
+model PollVote {
+  id         Int      @id @default(autoincrement())
+  pollId     String   @db.VarChar(80)
+  voterKey   String   @db.Char(64)
+  selections Json
+  createdAt  DateTime @default(now())
+
+  @@unique([pollId, voterKey])
+  @@index([pollId])
+}
+
+// Feishu-managed life album. MySQL stores metadata only; processed image
+// files live in the backend persistent volume under cache_data/albums.
+model AlbumPhoto {
+  id                Int       @id @default(autoincrement())
+  feishuRecordId    String    @unique @db.VarChar(128)
+  feishuFileToken   String    @db.VarChar(256)
+  title             String    @default("生活随拍") @db.VarChar(120)
+  caption           String?   @db.VarChar(500)
+  displayFileName   String    @unique @db.VarChar(64)
+  thumbnailFileName String    @unique @db.VarChar(64)
+  mimeType          String    @db.VarChar(64)
+  width             Int
+  height            Int
+  fileSize          Int
+  checksum          String    @db.Char(64)
+  sortOrder         Int       @default(0)
+  takenAt           DateTime?
+  featured          Boolean   @default(false)
+  tags              Json      @default("[]")
+  status            String    @default("Published") @db.VarChar(32)
+  syncedAt          DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  @@index([status, sortOrder, takenAt, id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int // 接收通知的用户 ID
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @db.LongText // 通知类型: 'reply' (回复), 'like' (点赞), 'system' (系统通知, 例如权限申请通过)
+  title     String   @db.LongText // 通知标题
+  content   String   @db.LongText // 通知详情/摘要
+  link      String?  @db.LongText // 点击通知跳转的链接 (如文章页 #comment-123)
+  isRead    Boolean  @default(false) // 是否已读
+  createdAt DateTime @default(now())
+}
+
+// 浏览历史记录表
+model ViewHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String   @db.VarChar(255) // CMS post ID
+  postTitle String   @db.LongText // 文章标题快照
+  viewedAt  DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+// 多语言词典表
+model I18nDict {
+  id        String   @id @default(uuid()) @db.VarChar(255)
+  key       String   @unique @db.VarChar(255)
+  zh_CN     String   @db.LongText
+  en_US     String   @db.LongText
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 编排模式插件授权（AgentDeck Pro）
+model LicenseKey {
+  id           Int                 @id @default(autoincrement())
+  keyDigest    String              @unique @db.Char(64)
+  keyHint      String              @db.VarChar(16)
+  productName  String              @default("编排模式 Pro") @db.VarChar(80)
+  status       String              @default("active") @db.VarChar(24)
+  boundDevice  String?             @db.VarChar(64)
+  machineName  String?             @db.VarChar(120)
+  licensedTo   String?             @db.VarChar(120)
+  packageName  String              @default("orchestration-pro") @db.VarChar(80)
+  expiresAt    DateTime?
+  activatedAt  DateTime?
+  lastVerifyAt DateTime?
+  verifyCount  Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  activations  LicenseActivation[]
+}
+
+model LicenseActivation {
+  id        Int        @id @default(autoincrement())
+  keyId     Int
+  key       LicenseKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  deviceId  String     @db.VarChar(64)
+  action    String     @db.VarChar(16)
+  ok        Boolean    @default(true)
+  ipHash    String?    @db.Char(64)
+  createdAt DateTime   @default(now())
+
+  @@index([keyId, createdAt])
+}
